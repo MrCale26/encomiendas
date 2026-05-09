@@ -1,15 +1,20 @@
-from django.db import models
+from datetime import timedelta
+from decimal import Decimal
+import uuid
+
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
+from django.db import models
 from django.utils import timezone
-from config.choices import EstadoGeneral, EstadoEnvio
+
 from clientes.models import Cliente
+from config.choices import EstadoEnvio, EstadoGeneral
 from rutas.models import Ruta
-from .validators import validar_peso_positivo, validar_codigo_encomienda
-from django.core.validators import MinValueValidator, RegexValidator
+from .querysets import EncomiendaQuerySet
+from .validators import validar_codigo_encomienda, validar_peso_positivo
 
 
 class Empleado(models.Model):
-
     codigo = models.CharField(max_length=10, unique=True)
     nombres = models.CharField(max_length=100)
     apellidos = models.CharField(max_length=100)
@@ -36,8 +41,8 @@ class Empleado(models.Model):
 
 
 class Encomienda(models.Model):
+    objects = EncomiendaQuerySet.as_manager()
 
-    # ── Identificación ─────────────────────────────
     codigo = models.CharField(
         max_length=20,
         unique=True,
@@ -51,7 +56,7 @@ class Encomienda(models.Model):
         decimal_places=2,
         validators=[
             validar_peso_positivo,
-            MinValueValidator(0.01, message='El peso mínimo es 0.01 kg')
+            MinValueValidator(0.01, message='El peso minimo es 0.01 kg')
         ]
     )
 
@@ -62,29 +67,22 @@ class Encomienda(models.Model):
         blank=True
     )
 
-    # ── Relaciones ────────────────────────────────
     remitente = models.ForeignKey(
         Cliente,
         on_delete=models.PROTECT,
-        related_name='envios_como_remitente',
-        null=True,
-        blank=True
+        related_name='envios_como_remitente'
     )
 
     destinatario = models.ForeignKey(
         Cliente,
         on_delete=models.PROTECT,
-        related_name='envios_como_destinatario',
-        null=True,
-        blank=True
+        related_name='envios_como_destinatario'
     )
 
     ruta = models.ForeignKey(
         Ruta,
         on_delete=models.PROTECT,
-        related_name='encomiendas',
-        null=True,
-        blank=True
+        related_name='encomiendas'
     )
 
     empleado_registro = models.ForeignKey(
@@ -93,7 +91,6 @@ class Encomienda(models.Model):
         related_name='encomiendas_registradas'
     )
 
-    # ── Estado y fechas ───────────────────────────
     estado = models.CharField(
         max_length=2,
         choices=EstadoEnvio.choices,
@@ -113,25 +110,21 @@ class Encomienda(models.Model):
 
     observaciones = models.TextField(blank=True, null=True)
 
-    # ── VALIDACIONES CRUZADAS ─────────────────────
     def clean(self):
         errors = {}
 
-        # 1. remitente != destinatario
         if self.remitente_id and self.destinatario_id:
             if self.remitente_id == self.destinatario_id:
                 errors['destinatario'] = ValidationError(
                     'El remitente y destinatario no pueden ser el mismo.'
                 )
 
-        # 2. fecha estimada no en el pasado
         if self.fecha_entrega_est:
             if self.fecha_entrega_est < timezone.now().date():
                 errors['fecha_entrega_est'] = ValidationError(
                     'La fecha estimada no puede ser en el pasado.'
                 )
 
-        # 3. fecha real no menor a estimada
         if self.fecha_entrega_est and self.fecha_entrega_real:
             if self.fecha_entrega_real < self.fecha_entrega_est:
                 errors['fecha_entrega_real'] = ValidationError(
@@ -141,62 +134,59 @@ class Encomienda(models.Model):
         if errors:
             raise ValidationError(errors)
 
-    # ── VALIDACIÓN AUTOMÁTICA ANTES DE GUARDAR ─────
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.codigo} [{self.get_estado_display()}]'
-    
-    #properytis
+
     @property
     def esta_entregada(self):
         return self.estado == EstadoEnvio.ENTREGADO
-    
+
     @property
     def esta_en_transito(self):
         return self.estado == EstadoEnvio.EN_TRANSITO
-    
+
     @property
     def dias_en_transito(self):
-        """Días transcurridos desde el registro"""
+        """Dias transcurridos desde el registro."""
         if not self.fecha_registro:
             return 0
         delta = timezone.now().date() - self.fecha_registro.date()
         return delta.days
-    
+
     @property
     def tiene_retraso(self):
-        """True si la fecha estimada ya pasó y no está entregada"""
+        """True si la fecha estimada ya paso y no esta entregada."""
         if not self.fecha_entrega_est or self.esta_entregada:
             return False
         return timezone.now().date() > self.fecha_entrega_est
-    
+
     @property
     def descripcion_corta(self):
-        """Primeros 50 caracteres de la descripción"""
+        """Primeros 50 caracteres de la descripcion."""
         return self.descripcion[:50] + '...' if len(self.descripcion) > 50 else self.descripcion
-        
+
     def cambiar_estado(self, nuevo_estado, empleado, observacion=''):
         """
         Cambia el estado de la encomienda y registra el cambio
-        en HistorialEstado automáticamente.
-        Uso: enc.cambiar_estado(EstadoEnvio.EN_TRANSITO, empleado=e1)
+        en HistorialEstado automaticamente.
         """
         if nuevo_estado == self.estado:
-            raise ValueError(f'La encomienda ya se encuentra en estado {self.get_estado_display()}')
+            raise ValueError(
+                f'La encomienda ya se encuentra en estado {self.get_estado_display()}'
+            )
 
         estado_anterior = self.estado
         self.estado = nuevo_estado
 
         if nuevo_estado == EstadoEnvio.ENTREGADO:
-            from django.utils import timezone
             self.fecha_entrega_real = timezone.now().date()
 
         self.save()
 
-        # Registrar en el historial
         HistorialEstado.objects.create(
             encomienda=self,
             estado_anterior=estado_anterior,
@@ -207,21 +197,20 @@ class Encomienda(models.Model):
 
         return self
 
-
     def calcular_costo(self):
         """
-        Calcula el costo del envío basándose en el precio
+        Calcula el costo del envio basandose en el precio
         base de la ruta y el peso del paquete.
         """
-        PRECIO_POR_KG_EXTRA = 2.50  # soles por kg adicional
-        PESO_BASE = 5.0  # los primeros 5kg están en el precio base
+        precio_por_kg_extra = Decimal('2.50')
+        peso_base = Decimal('5.0')
 
         costo = self.ruta.precio_base
-        if self.peso_kg > PESO_BASE:
-            costo += (self.peso_kg - PESO_BASE) * PRECIO_POR_KG_EXTRA
+        if self.peso_kg > peso_base:
+            costo += (self.peso_kg - peso_base) * precio_por_kg_extra
 
         return round(costo, 2)
-    
+
     @classmethod
     def crear_con_costo_calculado(
         cls,
@@ -234,20 +223,12 @@ class Encomienda(models.Model):
         **kwargs
     ):
         """
-        Fábrica: crea una encomienda calculando el costo automáticamente.
-        El llamador no necesita saber la fórmula de precio.
+        Fabrica: crea una encomienda calculando el costo automaticamente.
+        El llamador no necesita saber la formula de precio.
         """
-        import uuid
-        from django.utils import timezone
-        from datetime import timedelta
-
-        # Generar código único
         codigo = f'ENC-{timezone.now().strftime("%Y%m%d")}-{str(uuid.uuid4())[:6].upper()}'
-
-        # Calcular fecha estimada de entrega
         fecha_est = timezone.now().date() + timedelta(days=ruta.dias_entrega)
 
-        # Crear instancia de encomienda
         encomienda = cls(
             codigo=codigo,
             descripcion=descripcion,
@@ -260,10 +241,7 @@ class Encomienda(models.Model):
             **kwargs
         )
 
-        # Calcular costo automáticamente
         encomienda.costo_envio = encomienda.calcular_costo()
-
-        # Guardar en base de datos
         encomienda.save()
 
         return encomienda
@@ -276,7 +254,6 @@ class Encomienda(models.Model):
 
 
 class HistorialEstado(models.Model):
-
     encomienda = models.ForeignKey(
         Encomienda,
         on_delete=models.CASCADE,
@@ -304,7 +281,7 @@ class HistorialEstado(models.Model):
     fecha_cambio = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f'{self.encomienda.codigo}: {self.estado_anterior} → {self.estado_nuevo}'
+        return f'{self.encomienda.codigo}: {self.estado_anterior} -> {self.estado_nuevo}'
 
     class Meta:
         db_table = 'historial_estados'

@@ -1,8 +1,10 @@
 from django.db import models
 from config.choices import EstadoGeneral, TipoDocumento
+from envios.querysets import ClienteQuerySet
 
 
 class Cliente(models.Model):
+    objects = ClienteQuerySet.as_manager()
 
     tipo_doc = models.CharField(
         max_length=3,
@@ -27,17 +29,17 @@ class Cliente(models.Model):
 
     @property
     def nombre_completo(self):
-        """Nombre y apellidos en formato legible"""
+        """Nombre y apellidos en formato legible."""
         return f'{self.apellidos}, {self.nombres}'
-    
+
     @property
     def esta_activo(self):
-        """Devuelve True si el estado es ACTIVO"""
+        """Devuelve True si el estado es ACTIVO."""
         return self.estado == EstadoGeneral.ACTIVO
-    
+
     @property
     def total_encomiendas_enviadas(self):
-        """Número de encomiendas donde este cliente es remitente"""
+        """Numero de encomiendas donde este cliente es remitente."""
         return self.envios_como_remitente.count()
 
     def __str__(self):

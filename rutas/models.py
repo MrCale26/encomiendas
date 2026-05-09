@@ -1,8 +1,10 @@
 from django.db import models
 from config.choices import EstadoGeneral
+from envios.querysets import RutaQuerySet
 
 
 class Ruta(models.Model):
+    objects = RutaQuerySet.as_manager()
 
     codigo = models.CharField(max_length=10, unique=True)
     origen = models.CharField(max_length=100)
@@ -19,7 +21,7 @@ class Ruta(models.Model):
     )
 
     def __str__(self):
-        return f'{self.codigo}: {self.origen} → {self.destino}'
+        return f'{self.codigo}: {self.origen} -> {self.destino}'
 
     class Meta:
         db_table = 'rutas'

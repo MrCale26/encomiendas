@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar encomienda{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h4">Eliminar encomienda {{ encomienda.codigo }}</h1>
+    <p class="text-muted">Esta accion solo esta permitida para encomiendas pendientes.</p>
+    <form method="post">
+      {% csrf_token %}
+      <a href="{% url 'encomienda_detalle' encomienda.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-danger">Eliminar</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

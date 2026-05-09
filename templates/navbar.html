@@ -1,0 +1,44 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+    <a class="navbar-brand fw-semibold" href="{% url 'dashboard' %}">
+      <i class="fas fa-shipping-fast me-2"></i>Encomiendas
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarMain">
+      {% if user.is_authenticated %}
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'dashboard' %}">
+            Dashboard <span class="badge bg-light text-primary">{{ nav_activas|default:0 }}</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'encomienda_lista' %}">
+            Encomiendas
+            {% if nav_retraso %}
+              <span class="badge bg-danger rounded-pill">{{ nav_retraso }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'encomienda_crear' %}">Nueva</a>
+        </li>
+      </ul>
+      <div class="d-flex align-items-center gap-3 text-white">
+        <a class="text-white text-decoration-none" href="{% url 'perfil' %}">
+          <i class="fas fa-user me-1"></i>{{ user.username }}
+        </a>
+        <a class="btn btn-sm btn-outline-light" href="{% url 'logout' %}">
+          <i class="fas fa-right-from-bracket me-1"></i>Salir
+        </a>
+      </div>
+      {% else %}
+      <div class="ms-auto">
+        <a class="btn btn-sm btn-outline-light" href="{% url 'login' %}">Ingresar</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>

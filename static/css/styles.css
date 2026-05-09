@@ -1,0 +1,45 @@
+body {
+  background: #f4f6f8;
+}
+
+.card {
+  border: 0;
+  border-radius: 8px;
+}
+
+.table > :not(caption) > * > * {
+  vertical-align: middle;
+}
+
+.state-badge {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+}
+
+.state-pe {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.state-tr {
+  background: #fff3cd;
+  color: #8a6d00;
+}
+
+.state-de {
+  background: #cff4fc;
+  color: #055160;
+}
+
+.state-en {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.state-dv {
+  background: #f8d7da;
+  color: #842029;
+}

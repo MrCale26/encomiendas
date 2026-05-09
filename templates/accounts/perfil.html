@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block title %}Perfil - Encomiendas{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h3 mb-4">Perfil</h1>
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Usuario</dt>
+      <dd class="col-sm-9">{{ user.username }}</dd>
+      <dt class="col-sm-3">Email</dt>
+      <dd class="col-sm-9">{{ user.email|default:"-" }}</dd>
+      <dt class="col-sm-3">Empleado asociado</dt>
+      <dd class="col-sm-9">{{ empleado|default:"Sin empleado asociado por email" }}</dd>
+    </dl>
+  </div>
+</div>
+{% endblock %}
